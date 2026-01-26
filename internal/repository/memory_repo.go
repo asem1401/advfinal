@@ -4,10 +4,9 @@ import (
 	"errors"
 	"sync"
 
-	"advfinal/internal/models"
+	"bookstore/internal/models"
 )
 
-// BookRepository defines repository interface for Book entity
 type BookRepository interface {
 	Create(book models.Book) error
 	GetByID(id int) (models.Book, error)
@@ -16,20 +15,17 @@ type BookRepository interface {
 	Delete(id int) error
 }
 
-// BookRepo is an in-memory implementation of BookRepository
 type BookRepo struct {
 	mu    sync.RWMutex
 	books map[int]models.Book
 }
 
-// NewBookRepo initializes and returns a new in-memory Book repository
 func NewBookRepo() *BookRepo {
 	return &BookRepo{
 		books: make(map[int]models.Book),
 	}
 }
 
-// Create adds a new book to the repository
 func (r *BookRepo) Create(book models.Book) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -42,7 +38,6 @@ func (r *BookRepo) Create(book models.Book) error {
 	return nil
 }
 
-// GetByID returns a book by its ID
 func (r *BookRepo) GetByID(id int) (models.Book, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -55,7 +50,6 @@ func (r *BookRepo) GetByID(id int) (models.Book, error) {
 	return book, nil
 }
 
-// GetAll returns all books
 func (r *BookRepo) GetAll() []models.Book {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -68,7 +62,6 @@ func (r *BookRepo) GetAll() []models.Book {
 	return result
 }
 
-// Update updates an existing book
 func (r *BookRepo) Update(book models.Book) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -81,7 +74,6 @@ func (r *BookRepo) Update(book models.Book) error {
 	return nil
 }
 
-// Delete removes a book by its ID
 func (r *BookRepo) Delete(id int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

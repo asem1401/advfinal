@@ -1,3 +1,7 @@
+package models
+
+import "time"
+
 type Book struct {
 	ID          int
 	Title       string
