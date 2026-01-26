@@ -5,11 +5,13 @@ type User struct {
 	Email    string
 	Password string
 }
-
 type Book struct {
-	ID    int
-	Title string
-	Price float64
+	BookID      int     `json:"book_id"`
+	Title       string  `json:"title"`
+	Author      string  `json:"author"`
+	Genre       string  `json:"genre"`
+	Price       float64 `json:"price"`
+	Description string  `json:"description"`
 }
 
 type Order struct {
