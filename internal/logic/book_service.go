@@ -1,36 +1,59 @@
 package logic
 
 import (
-	"errors"
+ "errors"
 
-	"bookstore/internal/models"
-	"bookstore/internal/repository"
+ "bookstore/internal/models"
+ "bookstore/internal/repository"
 )
 
-func ListBooks() []models.Book {
-	return repository.ListBooks()
+
+type BookService struct {
+ repo repository.BookRepository
 }
 
-func GetBook(id int) (models.Book, bool) {
-	return repository.GetBook(id)
+
+func NewBookService(repo repository.BookRepository) *BookService {
+ return &BookService{
+  repo: repo,
+ }
 }
 
-func CreateBook(b models.Book) (models.Book, error) {
-	if b.BookID <= 0 {
-		return models.Book{}, errors.New("book_id must be positive")
-	}
-	if b.Title == "" || b.Author == "" {
-		return models.Book{}, errors.New("title and author required")
-	}
-	if b.Price < 0 {
-		return models.Book{}, errors.New("price cannot be negative")
-	}
-	return repository.CreateBook(b)
+
+func (s *BookService) ListBooks() []models.Book {
+ return s.repo.GetAll()
 }
 
-func UpdateBook(id int, patch models.Book) (models.Book, error) {
-	if patch.Price < 0 {
-		return models.Book{}, errors.New("price cannot be negative")
-	}
-	return repository.UpdateBook(id, patch)
+
+func (s *BookService) GetBook(id int) (models.Book, error) {
+ return s.repo.GetByID(id)
+}
+
+
+func (s *BookService) CreateBook(b models.Book) error {
+ if b.ID <= 0 {
+  return errors.New("book id must be positive")
+ }
+ if b.Title == "" || b.Author == "" {
+  return errors.New("title and author are required")
+ }
+ if b.Price < 0 {
+  return errors.New("price cannot be negative")
+ }
+
+ return s.repo.Create(b)
+}
+
+
+func (s *BookService) UpdateBook(b models.Book) error {
+ if b.Price < 0 {
+  return errors.New("price cannot be negative")
+ }
+
+ return s.repo.Update(b)
+}
+
+
+func (s *BookService) DeleteBook(id int) error {
+ return s.repo.Delete(id)
 }
