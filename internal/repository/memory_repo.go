@@ -1,6 +1,5 @@
 package repository
 
-<<<<<<< HEAD
 import (
 	"errors"
 	"sync"
@@ -85,11 +84,4 @@ func (r *BookRepo) Delete(id int) error {
 
 	delete(r.books, id)
 	return nil
-=======
-import "bookstore/internal/models"
-
-var Books = []models.Book{
-	{ID: 1, Title: "Go Basics", Price: 5000},
-	{ID: 2, Title: "Clean Code", Price: 7000},
->>>>>>> origin/main
 }
