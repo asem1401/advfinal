@@ -10,19 +10,16 @@ import (
  "bookstore/internal/models"
 )
 
-// BookHandler holds dependencies for book handlers
 type BookHandler struct {
  service *logic.BookService
 }
 
-// NewBookHandler creates a new BookHandler
 func NewBookHandler(service *logic.BookService) *BookHandler {
  return &BookHandler{
   service: service,
  }
 }
 
-// Books handles /books endpoint
 func (h *BookHandler) Books(w http.ResponseWriter, r *http.Request) {
  switch r.Method {
 
@@ -49,7 +46,6 @@ func (h *BookHandler) Books(w http.ResponseWriter, r *http.Request) {
  }
 }
 
-// BookByID handles /books/{id} endpoint
 func (h *BookHandler) BookByID(w http.ResponseWriter, r *http.Request) {
  idStr := strings.TrimPrefix(r.URL.Path, "/books/")
  id, err := strconv.Atoi(idStr)
