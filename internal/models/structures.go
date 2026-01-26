@@ -1,5 +1,6 @@
 package models
 
+<<<<<<< HEAD
 import "time"
 
 type Book struct {
@@ -49,4 +50,24 @@ type Payment struct {
 	OrderID int
 	Total   float64
 	Status  string
+=======
+type User struct {
+	ID       int
+	Email    string
+	Password string
+}
+type Book struct {
+	BookID      int     `json:"book_id"`
+	Title       string  `json:"title"`
+	Author      string  `json:"author"`
+	Genre       string  `json:"genre"`
+	Price       float64 `json:"price"`
+	Description string  `json:"description"`
+}
+
+type Order struct {
+	ID     int
+	UserID int
+	Total  float64
+>>>>>>> origin/main
 }
