@@ -2,7 +2,8 @@ package handlers
 
 import (
 	"net/http"
-	"project/internal/logic"
+
+	"bookstore/internal/logic"
 )
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -10,5 +11,6 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Login successful"))
 	} else {
 		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte("Unauthorized"))
 	}
 }
