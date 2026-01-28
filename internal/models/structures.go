@@ -50,3 +50,15 @@ type Payment struct {
 	Total   float64
 	Status  string
 }
+
+type Wishlist struct {
+	ID         int
+	CustomerID int
+}
+
+type WishlistItem struct {
+	ID         int
+	WishlistID int
+	BookID     int
+	Qty        int
+}
