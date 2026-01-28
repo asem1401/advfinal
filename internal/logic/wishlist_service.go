@@ -66,8 +66,7 @@ func (s *WishlistService) GiftFromWishlist(wishlistID int, buyerID int) (models.
 		if err != nil {
 			return models.Order{}, nil, 0, errors.New("book not found")
 		}
-
-		// В вашей модели OrderItem нет Qty, поэтому считаем 1 запись = 1 item
+		
 		orderItems = append(orderItems, models.OrderItem{
 			BookID: wi.BookID,
 			Price:  book.Price,
