@@ -43,6 +43,6 @@ func RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/orders", orderHandler.Orders)    
 	mux.HandleFunc("/orders/", orderHandler.OrderByID) 
-	
 	mux.HandleFunc("/cart/add", handlers.AddToCartHandler)
+	mux.HandleFunc("/login", handlers.Login)
 }
