@@ -10,11 +10,25 @@ import (
 	"bookstore/internal/models"
 )
 
-func Books(w http.ResponseWriter, r *http.Request) {
+// BookHandler holds dependencies for book handlers
+type BookHandler struct {
+	service *logic.BookService
+}
+
+// NewBookHandler creates a new BookHandler
+func NewBookHandler(service *logic.BookService) *BookHandler {
+	return &BookHandler{
+		service: service,
+	}
+}
+
+// Books handles /books endpoint
+func (h *BookHandler) Books(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 
 	case http.MethodGet:
-		writeJSON(w, http.StatusOK, logic.ListBooks())
+		books := h.service.ListBooks()
+		writeJSON(w, http.StatusOK, books)
 
 	case http.MethodPost:
 		var in models.Book
@@ -22,19 +36,21 @@ func Books(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 			return
 		}
-		created, err := logic.CreateBook(in)
-		if err != nil {
+
+		if err := h.service.CreateBook(in); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}
-		writeJSON(w, http.StatusCreated, map[string]any{"message": "created", "book": created})
+
+		writeJSON(w, http.StatusCreated, map[string]string{"message": "created"})
 
 	default:
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 	}
 }
 
-func BookByID(w http.ResponseWriter, r *http.Request) {
+// BookByID handles /books/{id} endpoint
+func (h *BookHandler) BookByID(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/books/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
@@ -45,8 +61,8 @@ func BookByID(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 
 	case http.MethodGet:
-		book, ok := logic.GetBook(id)
-		if !ok {
+		book, err := h.service.GetBook(id)
+		if err != nil {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "book not found"})
 			return
 		}
@@ -58,12 +74,21 @@ func BookByID(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 			return
 		}
-		updated, err := logic.UpdateBook(id, patch)
-		if err != nil {
+
+		patch.ID = id
+		if err := h.service.UpdateBook(patch); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"message": "updated", "book": updated})
+
+		writeJSON(w, http.StatusOK, map[string]string{"message": "updated"})
+
+	case http.MethodDelete:
+		if err := h.service.DeleteBook(id); err != nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
 
 	default:
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
