@@ -1,26 +1,18 @@
 package main
 
 import (
-	"log"
-	"net/http"
+ "log"
+ "net/http"
 
-
-	"bookstore/internal/handlers"
-
-	"bookstore/internal/logic"
+ "bookstore/internal/logic"
 )
 
 func main() {
-	logic.StartCartWorkerPool(3)
+ logic.StartCartWorkerPool(3)
 
-	mux := http.NewServeMux()
+ mux := http.NewServeMux()
+ RegisterRoutes(mux)
 
-	RegisterRoutes(mux)
-
-
-	mux.HandleFunc("/cart/add", handlers.AddToCartHandler)
-
-
-	log.Println("Server started at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", mux))
+ log.Println("Server started at http://localhost:8080")
+ log.Fatal(http.ListenAndServe(":8080", mux))
 }
