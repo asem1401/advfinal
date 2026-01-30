@@ -10,6 +10,20 @@ import (
 )
 
 func RegisterRoutes(mux *http.ServeMux) {
+	
+	bookRepo := repository.NewBookRepo()
+
+	
+	bookService := logic.NewBookService(bookRepo)
+
+	
+	bookHandler := handlers.NewBookHandler(bookService)
+
+
+	mux.HandleFunc("/health", handlers.Health)
+	mux.HandleFunc("/books", bookHandler.Books)     
+	mux.HandleFunc("/books/", bookHandler.BookByID) 
+
 
 	bookRepo := repository.NewBookRepo()
 	cartRepo := repository.NewCartRepo()
@@ -59,4 +73,5 @@ func RegisterRoutes(mux *http.ServeMux) {
 	})
 
 	mux.HandleFunc("/cart/add", handlers.AddToCartHandler)
+
 }

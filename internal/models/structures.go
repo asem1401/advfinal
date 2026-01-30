@@ -49,6 +49,7 @@ type Payment struct {
 	OrderID int
 	Total   float64
 	Status  string
+
 }
 
 type Wishlist struct {
@@ -61,4 +62,5 @@ type WishlistItem struct {
 	WishlistID int
 	BookID     int
 	Qty        int
+
 }
