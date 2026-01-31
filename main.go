@@ -1,18 +1,25 @@
 package main
 
 import (
- "log"
- "net/http"
+	"bookstore/internal/db"
+	"log"
+	"net/http"
 
- "bookstore/internal/logic"
+	"github.com/joho/godotenv"
 )
 
 func main() {
- logic.StartCartWorkerPool(3)
+	_ = godotenv.Load()
 
- mux := http.NewServeMux()
- RegisterRoutes(mux)
+	client, mongoDB, err := db.Connect()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(db.Bg())
 
- log.Println("Server started at http://localhost:8080")
- log.Fatal(http.ListenAndServe(":8080", mux))
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, mongoDB)
+
+	log.Println("Server started at http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }

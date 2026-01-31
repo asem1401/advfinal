@@ -11,11 +11,12 @@ type Book struct {
 	Description string
 }
 
-type Customer struct {
-	ID       int
-	Email    string
-	Password string
-	Address  string
+type User struct {
+	ID       int    `json:"id" bson:"id"`
+	Email    string `json:"email" bson:"email"`
+	Password string `json:"password" bson:"password"`
+	Role     string `json:"role" bson:"role"`
+	Address  string `json:"address,omitempty" bson:"address,omitempty"`
 }
 
 type Cart struct {
@@ -32,16 +33,18 @@ type CartItem struct {
 }
 
 type Order struct {
-	ID         int
-	CustomerID int
-	Total      float64
+	ID         int     `json:"id" bson:"id"`
+	CustomerID int     `json:"customerId" bson:"customerId"`
+	CartID     int     `json:"cartId" bson:"cartId"`
+	Total      float64 `json:"total" bson:"total"`
 }
 
 type OrderItem struct {
-	ID      int
-	OrderID int
-	BookID  int
-	Price   float64
+	ID      int     `json:"id" bson:"id"`
+	OrderID int     `json:"orderId" bson:"orderId"`
+	BookID  int     `json:"bookId" bson:"bookId"`
+	Qty     int     `json:"qty" bson:"qty"`
+	Price   float64 `json:"price" bson:"price"`
 }
 
 type Payment struct {
@@ -49,18 +52,16 @@ type Payment struct {
 	OrderID int
 	Total   float64
 	Status  string
-
 }
 
 type Wishlist struct {
-	ID         int
-	CustomerID int
+	ID         int `json:"id" bson:"id"`
+	CustomerID int `json:"customerId" bson:"customerId"`
 }
 
 type WishlistItem struct {
-	ID         int
-	WishlistID int
-	BookID     int
-	Qty        int
-
+	ID         int `json:"id" bson:"id"`
+	WishlistID int `json:"wishlistId" bson:"wishlistId"`
+	BookID     int `json:"bookId" bson:"bookId"`
+	Qty        int `json:"qty" bson:"qty"`
 }
