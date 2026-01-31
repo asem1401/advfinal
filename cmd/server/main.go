@@ -7,13 +7,14 @@ import (
 
 	"bookstore/internal/db"
 	"bookstore/internal/handlers"
+	"bookstore/internal/logic"
 	"bookstore/internal/repository"
 
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	godotenv.Load()
+	_ = godotenv.Load()
 
 	client, mongoDB, err := db.Connect()
 	if err != nil {
@@ -21,16 +22,23 @@ func main() {
 	}
 	defer client.Disconnect(db.Bg())
 
-	var bookRepo repository.BookRepository = repository.NewBookRepo(mongoDB)
-	bookHandler := handlers.NewBookHandler(bookRepo)
+	bookRepo := repository.NewBookRepo(mongoDB)
+	bookService := logic.NewBookService(bookRepo)
+	bookHandler := handlers.NewBookHandler(bookService)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	})
-	mux.HandleFunc("/books", bookHandler.Books)
-	mux.HandleFunc("/books/", bookHandler.BookByID)
+
+	mux.HandleFunc("GET /books", bookHandler.Books)
+	mux.HandleFunc("POST /books", bookHandler.Books)
+	
+	mux.HandleFunc("GET /books/{id}", bookHandler.BookByID)
+	mux.HandleFunc("PUT /books/{id}", bookHandler.BookByID)
+	mux.HandleFunc("DELETE /books/{id}", bookHandler.BookByID)
 
 	addr := ":8080"
 	if p := os.Getenv("PORT"); p != "" {

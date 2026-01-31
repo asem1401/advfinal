@@ -1,10 +1,14 @@
 package repository
 
 import (
+	"context"
 	"errors"
-	"sync"
+	"time"
 
 	"bookstore/internal/models"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type WishlistRepository interface {
@@ -18,121 +22,171 @@ type WishlistRepository interface {
 }
 
 type WishlistRepo struct {
-	mu sync.RWMutex
-
-	nextWishlistID int
-	nextItemID     int
-	wishlists      map[int]models.Wishlist
-	items          map[int][]models.WishlistItem
+	wishlistsCol *mongo.Collection
+	itemsCol     *mongo.Collection
+	counters     *CounterRepo
 }
 
-func NewWishlistRepo() *WishlistRepo {
+func NewWishlistRepo(db *mongo.Database) *WishlistRepo {
 	return &WishlistRepo{
-		nextWishlistID: 1,
-		nextItemID:     1,
-		wishlists:      make(map[int]models.Wishlist),
-		items:          make(map[int][]models.WishlistItem),
+		wishlistsCol: db.Collection("wishlists"),
+		itemsCol:     db.Collection("wishlist_items"),
+		counters:     NewCounterRepo(db),
 	}
 }
 
 func (r *WishlistRepo) Create(customerID int) models.Wishlist {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if customerID <= 0 {
+		customerID = 1
+	}
+
+	id, err := r.counters.Next("wishlists")
+	if err != nil {
+		return models.Wishlist{}
+	}
 
 	w := models.Wishlist{
-		ID:         r.nextWishlistID,
+		ID:         id,
 		CustomerID: customerID,
 	}
-	r.nextWishlistID++
-	r.wishlists[w.ID] = w
-	r.items[w.ID] = []models.WishlistItem{}
+
+	_, err = r.wishlistsCol.InsertOne(ctx, w)
+	if err != nil {
+		return models.Wishlist{}
+	}
+
 	return w
 }
 
 func (r *WishlistRepo) GetAll() []models.Wishlist {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
 
-	out := make([]models.Wishlist, 0, len(r.wishlists))
-	for _, w := range r.wishlists {
-		out = append(out, w)
+	cur, err := r.wishlistsCol.Find(ctx, bson.M{})
+	if err != nil {
+		return []models.Wishlist{}
+	}
+	defer cur.Close(ctx)
+
+	out := []models.Wishlist{}
+	for cur.Next(ctx) {
+		var w models.Wishlist
+		if cur.Decode(&w) == nil {
+			out = append(out, w)
+		}
 	}
 	return out
 }
 
 func (r *WishlistRepo) GetByID(id int) (models.Wishlist, []models.WishlistItem, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
 
-	w, ok := r.wishlists[id]
-	if !ok {
+	var w models.Wishlist
+	err := r.wishlistsCol.FindOne(ctx, bson.M{"id": id}).Decode(&w)
+	if err == mongo.ErrNoDocuments {
 		return models.Wishlist{}, nil, errors.New("wishlist not found")
 	}
-	items := append([]models.WishlistItem(nil), r.items[id]...)
+	if err != nil {
+		return models.Wishlist{}, nil, err
+	}
+
+	cur, err := r.itemsCol.Find(ctx, bson.M{"wishlistId": id})
+	if err != nil {
+		return models.Wishlist{}, nil, err
+	}
+	defer cur.Close(ctx)
+
+	items := []models.WishlistItem{}
+	for cur.Next(ctx) {
+		var it models.WishlistItem
+		if cur.Decode(&it) == nil {
+			items = append(items, it)
+		}
+	}
+
 	return w, items, nil
 }
 
 func (r *WishlistRepo) Delete(id int) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
 
-	if _, ok := r.wishlists[id]; !ok {
+	res, err := r.wishlistsCol.DeleteOne(ctx, bson.M{"id": id})
+	if err != nil {
+		return err
+	}
+	if res.DeletedCount == 0 {
 		return errors.New("wishlist not found")
 	}
-	delete(r.wishlists, id)
-	delete(r.items, id)
+
+	_, _ = r.itemsCol.DeleteMany(ctx, bson.M{"wishlistId": id})
 	return nil
 }
 
 func (r *WishlistRepo) AddItem(wishlistID int, bookID int, qty int) (models.WishlistItem, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	if _, ok := r.wishlists[wishlistID]; !ok {
-		return models.WishlistItem{}, errors.New("wishlist not found")
-	}
 	if qty <= 0 {
 		return models.WishlistItem{}, errors.New("qty must be > 0")
 	}
 
-	items := r.items[wishlistID]
-	for i := range items {
-		if items[i].BookID == bookID {
-			items[i].Qty += qty
-			r.items[wishlistID] = items
-			return items[i], nil
-		}
+	err := r.wishlistsCol.FindOne(ctx, bson.M{"id": wishlistID}).Err()
+	if err == mongo.ErrNoDocuments {
+		return models.WishlistItem{}, errors.New("wishlist not found")
+	}
+	if err != nil {
+		return models.WishlistItem{}, err
+	}
+
+	res := r.itemsCol.FindOneAndUpdate(
+		ctx,
+		bson.M{"wishlistId": wishlistID, "bookId": bookID},
+		bson.M{"$inc": bson.M{"qty": qty}},
+	)
+	if res.Err() == nil {
+		var updated models.WishlistItem
+		_ = res.Decode(&updated)
+		return updated, nil
+	}
+	if res.Err() != mongo.ErrNoDocuments {
+		return models.WishlistItem{}, res.Err()
+	}
+
+	itemID, err := r.counters.Next("wishlist_items")
+	if err != nil {
+		return models.WishlistItem{}, err
 	}
 
 	it := models.WishlistItem{
-		ID:         r.nextItemID,
+		ID:         itemID,
 		WishlistID: wishlistID,
 		BookID:     bookID,
 		Qty:        qty,
 	}
-	r.nextItemID++
-	r.items[wishlistID] = append(r.items[wishlistID], it)
+
+	_, err = r.itemsCol.InsertOne(ctx, it)
+	if err != nil {
+		return models.WishlistItem{}, err
+	}
+
 	return it, nil
 }
 
 func (r *WishlistRepo) DeleteItem(wishlistID int, itemID int) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
 
-	items := r.items[wishlistID]
-	out := make([]models.WishlistItem, 0, len(items))
-	found := false
-
-	for _, it := range items {
-		if it.ID == itemID {
-			found = true
-			continue
-		}
-		out = append(out, it)
+	res, err := r.itemsCol.DeleteOne(ctx, bson.M{"wishlistId": wishlistID, "id": itemID})
+	if err != nil {
+		return err
 	}
-	if !found {
+	if res.DeletedCount == 0 {
 		return errors.New("item not found")
 	}
-	r.items[wishlistID] = out
 	return nil
 }

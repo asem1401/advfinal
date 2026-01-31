@@ -2,6 +2,7 @@ package logic
 
 import (
 	"errors"
+	"log"
 
 	"bookstore/internal/models"
 	"bookstore/internal/repository"
@@ -41,6 +42,15 @@ func (s *WishlistService) GetWishlist(id int) (models.Wishlist, []models.Wishlis
 }
 
 func (s *WishlistService) AddItem(wishlistID, bookID, qty int) (models.WishlistItem, error) {
+	if wishlistID <= 0 {
+		return models.WishlistItem{}, errors.New("wishlistId must be positive")
+	}
+	if bookID <= 0 {
+		return models.WishlistItem{}, errors.New("bookId must be positive")
+	}
+	if qty <= 0 {
+		return models.WishlistItem{}, errors.New("qty must be > 0")
+	}
 	if _, err := s.bookRepo.GetByID(bookID); err != nil {
 		return models.WishlistItem{}, errors.New("book not found")
 	}
@@ -48,6 +58,9 @@ func (s *WishlistService) AddItem(wishlistID, bookID, qty int) (models.WishlistI
 }
 
 func (s *WishlistService) GiftFromWishlist(wishlistID int, buyerID int) (models.Order, []models.OrderItem, int, error) {
+	if wishlistID <= 0 {
+		return models.Order{}, nil, 0, errors.New("wishlistId must be positive")
+	}
 	if buyerID <= 0 {
 		return models.Order{}, nil, 0, errors.New("buyerCustomerId must be positive")
 	}
@@ -60,23 +73,52 @@ func (s *WishlistService) GiftFromWishlist(wishlistID int, buyerID int) (models.
 		return models.Order{}, nil, 0, errors.New("wishlist is empty")
 	}
 
-	var orderItems []models.OrderItem
+	orderItems := make([]models.OrderItem, 0, len(items))
+	var total float64
+
 	for _, wi := range items {
+		if wi.BookID <= 0 {
+			return models.Order{}, nil, 0, errors.New("invalid bookId in wishlist")
+		}
+		if wi.Qty <= 0 {
+			return models.Order{}, nil, 0, errors.New("invalid qty in wishlist")
+		}
+
 		book, err := s.bookRepo.GetByID(wi.BookID)
 		if err != nil {
 			return models.Order{}, nil, 0, errors.New("book not found")
 		}
-		
+		if book.Price < 0 {
+			return models.Order{}, nil, 0, errors.New("book price cannot be negative")
+		}
+
 		orderItems = append(orderItems, models.OrderItem{
 			BookID: wi.BookID,
+			Qty:    wi.Qty,
 			Price:  book.Price,
 		})
+
+		total += book.Price * float64(wi.Qty)
 	}
 
-	order, createdItems, err := s.orderRepo.Create(buyerID, orderItems)
+	order := models.Order{
+		CustomerID: buyerID,
+		CartID:     wishlistID,
+		Total:      total,
+	}
+
+	createdOrder, createdItems, err := s.orderRepo.Create(order, orderItems)
 	if err != nil {
 		return models.Order{}, nil, 0, err
 	}
 
-	return order, createdItems, w.CustomerID, nil
+	log.Printf("[GIFT] enqueue clear wishlist job: wishlistId=%d orderId=%d\n", wishlistID, createdOrder.ID)
+
+	OrderJobQueue <- OrderJob{
+		Type:       JobClearWishlist,
+		OrderID:    createdOrder.ID,
+		WishlistID: wishlistID,
+	}
+
+	return createdOrder, createdItems, w.CustomerID, nil
 }

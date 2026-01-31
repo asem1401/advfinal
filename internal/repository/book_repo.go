@@ -12,12 +12,13 @@ import (
 )
 
 type BookRepository interface {
-	Create(book models.Book) error
+	Create(book models.Book) (models.Book, error)
 	GetByID(id int) (models.Book, error)
 	GetAll() []models.Book
 	Update(book models.Book) error
 	Delete(id int) error
 }
+
 type BookRepo struct {
 	col      *mongo.Collection
 	counters *CounterRepo
@@ -30,18 +31,22 @@ func NewBookRepo(db *mongo.Database) *BookRepo {
 	}
 }
 
-func (r *BookRepo) Create(book models.Book) error {
+func (r *BookRepo) Create(book models.Book) (models.Book, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	id, err := r.counters.Next("books")
 	if err != nil {
-		return err
+		return models.Book{}, err
 	}
 	book.ID = id
 
 	_, err = r.col.InsertOne(ctx, book)
-	return err
+	if err != nil {
+		return models.Book{}, err
+	}
+
+	return book, nil
 }
 
 func (r *BookRepo) GetByID(id int) (models.Book, error) {

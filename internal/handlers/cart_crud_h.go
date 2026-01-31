@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"bookstore/internal/logic"
+	"bookstore/internal/middleware"
 	"bookstore/internal/models"
 )
 
@@ -19,16 +20,31 @@ func NewCartHandler(service *logic.CartCRUDService) *CartHandler {
 }
 
 func (h *CartHandler) Carts(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	role := middleware.Role(r)
+
 	switch r.Method {
 	case http.MethodGet:
-		writeJSON(w, http.StatusOK, h.service.ListCarts())
+		if role == "admin" {
+			writeJSON(w, http.StatusOK, h.service.ListCarts())
+			return
+		}
+
+		all := h.service.ListCarts()
+		out := make([]models.Cart, 0)
+		for _, c := range all {
+			if c.CustomerID == userID {
+				out = append(out, c)
+			}
+		}
+		writeJSON(w, http.StatusOK, out)
 
 	case http.MethodPost:
-		var in struct {
-			CustomerID int `json:"customerId"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&in)
-		c := h.service.CreateCart(in.CustomerID)
+		c := h.service.CreateCart(userID)
 		writeJSON(w, http.StatusCreated, c)
 
 	default:
@@ -37,6 +53,13 @@ func (h *CartHandler) Carts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CartHandler) CartByID(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	role := middleware.Role(r)
+
 	idStr := strings.TrimPrefix(r.URL.Path, "/carts/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
@@ -44,13 +67,19 @@ func (h *CartHandler) CartByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	c, items, err := h.service.GetCart(id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+
+	if role != "admin" && c.CustomerID != userID {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden"})
+		return
+	}
+
 	switch r.Method {
 	case http.MethodGet:
-		c, items, err := h.service.GetCart(id)
-		if err != nil {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
-			return
-		}
 		writeJSON(w, http.StatusOK, map[string]any{"cart": c, "items": items})
 
 	case http.MethodPut:
@@ -60,6 +89,11 @@ func (h *CartHandler) CartByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		in.ID = id
+
+		if role != "admin" {
+			in.CustomerID = userID
+		}
+
 		if err := h.service.UpdateCart(in); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
@@ -79,7 +113,13 @@ func (h *CartHandler) CartByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CartHandler) CartItems(w http.ResponseWriter, r *http.Request) {
-	// ожидаем /carts/{id}/items
+	userID, ok := middleware.UserID(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	role := middleware.Role(r)
+
 	path := strings.TrimPrefix(r.URL.Path, "/carts/")
 	parts := strings.Split(path, "/")
 	if len(parts) < 2 || parts[1] != "items" {
@@ -93,6 +133,16 @@ func (h *CartHandler) CartItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	c, _, err := h.service.GetCart(cartID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	if role != "admin" && c.CustomerID != userID {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden"})
+		return
+	}
+
 	switch r.Method {
 	case http.MethodPost:
 		var in struct {
@@ -103,6 +153,7 @@ func (h *CartHandler) CartItems(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 			return
 		}
+
 		item, err := h.service.AddItem(cartID, in.BookID, in.Qty)
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -116,6 +167,13 @@ func (h *CartHandler) CartItems(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CartHandler) CartItemByID(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	role := middleware.Role(r)
+
 	path := strings.TrimPrefix(r.URL.Path, "/carts/")
 	parts := strings.Split(path, "/")
 	if len(parts) < 3 || parts[1] != "items" {
@@ -132,6 +190,16 @@ func (h *CartHandler) CartItemByID(w http.ResponseWriter, r *http.Request) {
 	itemID, err := strconv.Atoi(parts[2])
 	if err != nil || itemID <= 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid item id"})
+		return
+	}
+
+	c, _, err := h.service.GetCart(cartID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	if role != "admin" && c.CustomerID != userID {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden"})
 		return
 	}
 

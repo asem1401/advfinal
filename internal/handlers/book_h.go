@@ -4,97 +4,99 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
+	"bookstore/internal/logic"
 	"bookstore/internal/models"
-	"bookstore/internal/repository"
 )
 
 type BookHandler struct {
-	repo repository.BookRepository
+	service *logic.BookService
 }
 
-func NewBookHandler(repo repository.BookRepository) *BookHandler {
-	return &BookHandler{repo: repo}
+func NewBookHandler(service *logic.BookService) *BookHandler {
+	return &BookHandler{service: service}
 }
 
 func (h *BookHandler) Books(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	if r.Method == http.MethodGet {
-		books := h.repo.GetAll()
-		json.NewEncoder(w).Encode(books)
-		return
-	}
+	switch r.Method {
+	case http.MethodGet:
+		books := h.service.ListBooks()
+		_ = json.NewEncoder(w).Encode(books)
 
-	if r.Method == http.MethodPost {
+	case http.MethodPost:
 		var b models.Book
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "invalid json"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid json"})
 			return
 		}
-		if err := h.repo.Create(b); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(b)
-		return
-	}
 
-	w.WriteHeader(http.StatusMethodNotAllowed)
+		created, err := h.service.CreateBook(b)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(created)
+
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+	}
 }
 
 func (h *BookHandler) BookByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	idStr := strings.TrimPrefix(r.URL.Path, "/books/")
+	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
-	if err != nil {
+	if err != nil || id <= 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid id"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid id"})
 		return
 	}
 
-	if r.Method == http.MethodGet {
-		b, err := h.repo.GetByID(id)
+	switch r.Method {
+	case http.MethodGet:
+		b, err := h.service.GetBook(id)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return
 		}
-		json.NewEncoder(w).Encode(b)
-		return
-	}
+		_ = json.NewEncoder(w).Encode(b)
 
-	if r.Method == http.MethodPut {
+	case http.MethodPut:
 		var b models.Book
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "invalid json"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid json"})
 			return
 		}
+
 		b.ID = id
-		if err := h.repo.Update(b); err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		if err := h.service.UpdateBook(b); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return
 		}
-		json.NewEncoder(w).Encode(b)
-		return
-	}
 
-	if r.Method == http.MethodDelete {
-		if err := h.repo.Delete(id); err != nil {
+		_ = json.NewEncoder(w).Encode(b)
+
+	case http.MethodDelete:
+		if err := h.service.DeleteBook(id); err != nil {
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
-		return
-	}
+		w.WriteHeader(http.StatusNoContent)
 
-	w.WriteHeader(http.StatusMethodNotAllowed)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+	}
 }
