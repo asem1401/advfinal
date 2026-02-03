@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"bookstore/internal/logic"
 	"bookstore/internal/models"
@@ -22,7 +23,13 @@ func (h *BookHandler) Books(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		books := h.service.ListBooks()
+		q := parseBookQuery(r)
+		books, err := h.service.ListBooks(r.Context(), q)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+			return
+		}
 		_ = json.NewEncoder(w).Encode(books)
 
 	case http.MethodPost:
@@ -99,4 +106,26 @@ func (h *BookHandler) BookByID(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
 	}
+}
+
+func parseBookQuery(r *http.Request) models.BookQuery {
+	qp := r.URL.Query()
+
+	var q models.BookQuery
+	q.Genre = strings.TrimSpace(qp.Get("genre"))
+	q.SortBy = strings.TrimSpace(qp.Get("sort"))
+	q.Order = strings.TrimSpace(qp.Get("order"))
+
+	if v := qp.Get("minPrice"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			q.MinPrice = &f
+		}
+	}
+	if v := qp.Get("maxPrice"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			q.MaxPrice = &f
+		}
+	}
+
+	return q
 }
