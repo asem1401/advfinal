@@ -3,12 +3,20 @@ package models
 import "time"
 
 type Book struct {
-	ID          int
-	Title       string
-	Author      string
-	Genre       string
-	Price       float64
-	Description string
+	ID          int     `json:"id" bson:"id"`
+	Title       string  `json:"title" bson:"title"`
+	Author      string  `json:"author" bson:"author"`
+	Genre       string  `json:"genre" bson:"genre"`
+	Price       float64 `json:"price" bson:"price"`
+	Description string  `json:"description" bson:"description"`
+}
+
+type BookQuery struct {
+	Genre    string
+	MinPrice *float64
+	MaxPrice *float64
+	SortBy   string
+	Order    string
 }
 
 type User struct {
