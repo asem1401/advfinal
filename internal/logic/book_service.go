@@ -1,7 +1,9 @@
 package logic
 
 import (
+	"context"
 	"errors"
+	"strings"
 
 	"bookstore/internal/models"
 	"bookstore/internal/repository"
@@ -15,8 +17,27 @@ func NewBookService(repo repository.BookRepository) *BookService {
 	return &BookService{repo: repo}
 }
 
-func (s *BookService) ListBooks() []models.Book {
-	return s.repo.GetAll()
+func (s *BookService) ListBooks(ctx context.Context, q models.BookQuery) ([]models.Book, error) {
+	q.Genre = strings.TrimSpace(q.Genre)
+	q.SortBy = strings.ToLower(strings.TrimSpace(q.SortBy))
+	q.Order = strings.ToLower(strings.TrimSpace(q.Order))
+	if q.Order != "desc" {
+		q.Order = "asc"
+	}
+
+	if q.MinPrice != nil && *q.MinPrice < 0 {
+		v := 0.0
+		q.MinPrice = &v
+	}
+	if q.MaxPrice != nil && *q.MaxPrice < 0 {
+		v := 0.0
+		q.MaxPrice = &v
+	}
+	if q.MinPrice != nil && q.MaxPrice != nil && *q.MinPrice > *q.MaxPrice {
+		q.MinPrice, q.MaxPrice = q.MaxPrice, q.MinPrice
+	}
+
+	return s.repo.Find(ctx, q)
 }
 
 func (s *BookService) GetBook(id int) (models.Book, error) {

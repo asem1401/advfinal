@@ -9,6 +9,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type BookRepository interface {
@@ -17,6 +18,8 @@ type BookRepository interface {
 	GetAll() []models.Book
 	Update(book models.Book) error
 	Delete(id int) error
+
+	Find(ctx context.Context, q models.BookQuery) ([]models.Book, error)
 }
 
 type BookRepo struct {
@@ -107,4 +110,52 @@ func (r *BookRepo) Delete(id int) error {
 		return errors.New("book not found")
 	}
 	return nil
+}
+
+func (r *BookRepo) Find(ctx context.Context, q models.BookQuery) ([]models.Book, error) {
+	filter := bson.M{}
+
+	if q.Genre != "" {
+		filter["genre"] = q.Genre
+	}
+
+	if q.MinPrice != nil || q.MaxPrice != nil {
+		price := bson.M{}
+		if q.MinPrice != nil {
+			price["$gte"] = *q.MinPrice
+		}
+		if q.MaxPrice != nil {
+			price["$lte"] = *q.MaxPrice
+		}
+		filter["price"] = price
+	}
+
+	opts := options.Find()
+
+	dir := int32(1)
+	if q.Order == "desc" {
+		dir = -1
+	}
+
+	switch q.SortBy {
+	case "price":
+		opts.SetSort(bson.D{{Key: "price", Value: dir}})
+	case "title":
+		opts.SetSort(bson.D{{Key: "title", Value: dir}})
+	}
+
+	cur, err := r.col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	out := []models.Book{}
+	for cur.Next(ctx) {
+		var b models.Book
+		if cur.Decode(&b) == nil {
+			out = append(out, b)
+		}
+	}
+	return out, nil
 }
