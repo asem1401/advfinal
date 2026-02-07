@@ -20,7 +20,7 @@
       <label>Description</label>
       <textarea name="description" rows="4"></textarea>
 
-      <button class="btn primary" type="submit">Create</button>
+      <button class="btn btn-primary" type="submit">Create</button>
     </form>
   </div>
 
@@ -35,7 +35,7 @@
           <div class="price">${{printf "%.2f" .Price}}</div>
 
           <form method="post" action="/admin/books/delete/{{.ID}}">
-            <button class="btn danger" type="submit">Delete</button>
+            <button class="btn btn-danger" type="submit">Delete</button>
           </form>
         </div>
       {{else}}
