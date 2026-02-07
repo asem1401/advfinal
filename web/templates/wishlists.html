@@ -1,57 +1,95 @@
 {{define "content"}}
 <h1 class="h1">Wishlists</h1>
 
-<div class="card" style="margin-bottom:14px;">
-  <div class="muted">Your wishlist ID: {{.Wishlist.ID}}</div>
-  <div class="muted">
-    Anyone can gift your wishlist items (buyer will create an order).
-  </div>
-</div>
+<p class="muted" style="margin:0 0 14px;">
+  Your wishlist is private to your account, but other logged-in users can view it and gift books to you.
+</p>
 
-{{if .Rows}}
-  <div class="table">
-    <div class="table-head">
-      <div>Book</div>
-      <div>Qty</div>
-      <div></div>
+<h2 class="h2">My Wishlist</h2>
+
+<div class="card" style="margin-bottom:14px;">
+  <div class="muted" style="margin-bottom:10px;">
+    Wishlist #{{.My.Wishlist.ID}} • Owner: User #{{.My.Wishlist.CustomerID}}
+  </div>
+
+  {{if .My.Rows}}
+    <div class="table">
+      <div class="table-head">
+        <div>Book</div>
+        <div>Price</div>
+        <div>Qty</div>
+        <div>Total</div>
+      </div>
+
+      {{range .My.Rows}}
+        <div class="table-row">
+          <div>
+            <div class="card-title">{{.Book.Title}}</div>
+            <div class="muted">{{.Book.Author}} • {{.Book.Genre}}</div>
+          </div>
+          <div class="price">${{printf "%.2f" .Book.Price}}</div>
+          <div class="muted">{{.Item.Qty}}</div>
+          <div class="price">${{printf "%.2f" .Line}}</div>
+        </div>
+      {{end}}
     </div>
 
-    {{range .Rows}}
-      <div class="table-row">
-        <div>
-          <div class="card-title">{{.Book.Title}}</div>
-          <div class="muted">{{.Book.Author}}</div>
+    <div class="summary">
+      <div class="muted">Tip: Add more books from the Catalog.</div>
+      <div class="summary-total">${{printf "%.2f" .My.Total}}</div>
+    </div>
+  {{else}}
+    <div class="muted">Your wishlist is empty. Go to Catalog and click “Add to Wishlist”.</div>
+  {{end}}
+</div>
+
+<hr class="hr"/>
+
+<h2 class="h2">Other users’ wishlists</h2>
+
+{{if .Others}}
+  <div class="grid">
+    {{range .Others}}
+      <div class="card">
+        <div class="card-title">User #{{.Wishlist.CustomerID}}</div>
+        <div class="muted" style="margin-bottom:10px;">
+          Wishlist #{{.Wishlist.ID}}
         </div>
-        <div>{{.Item.Qty}}</div>
-        <div class="muted">Added</div>
+
+        {{if .Rows}}
+          {{range .Rows}}
+            <div style="padding:10px 0; border-top:1px solid rgba(255,255,255,0.04);">
+              <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+                <div>
+                  <div class="card-title" style="margin:0;">{{.Book.Title}}</div>
+                  <div class="muted">{{.Book.Author}} • {{.Book.Genre}}</div>
+                  <div class="muted">Qty: {{.Item.Qty}}</div>
+                </div>
+                <div class="price">${{printf "%.2f" .Book.Price}}</div>
+              </div>
+            </div>
+          {{end}}
+
+          <div class="hr"></div>
+
+          <div class="summary" style="margin-top:0;">
+            <div class="muted">Wishlist total</div>
+            <div class="summary-total">${{printf "%.2f" .Total}}</div>
+          </div>
+
+          <form method="post" action="/wishlists/gift/{{.Wishlist.ID}}" style="margin-top:12px;">
+            <button class="btn btn-primary" type="submit">Gift (Create Order)</button>
+          </form>
+        {{else}}
+          <div class="muted">This wishlist is empty.</div>
+        {{end}}
       </div>
     {{end}}
   </div>
-
-  <form method="post" action="/wishlists/gift/{{.Wishlist.ID}}" style="margin-top:14px;">
-    <button class="btn btn-primary" type="submit">Gift this Wishlist (as buyer)</button>
-  </form>
 {{else}}
-  <p class="muted">Your wishlist is empty. Add books from catalog.</p>
+  <div class="muted">No other wishlists yet.</div>
 {{end}}
 
-<hr class="hr">
-
-<h2 class="h2">Quick add to Wishlist</h2>
-<div class="grid">
-  {{range .Books}}
-    <div class="card">
-      <div class="card-title">{{.Title}}</div>
-      <div class="muted">{{.Author}}</div>
-      <div class="price">${{printf "%.2f" .Price}}</div>
-
-      <form method="post" action="/wishlists/add/{{.ID}}" style="margin-top:10px;">
-        <button class="btn btn-ghost" type="submit">Add</button>
-      </form>
-    </div>
-  {{end}}
-</div>
 {{end}}
 
 {{template "base" .}}
-
