@@ -32,6 +32,10 @@
 
         <a class="{{if eq .Active "about"}}active{{end}}" href="/about">About</a>
 
+        {{if eq .Role "admin"}}
+          <a class="{{if eq .Active "admin"}}active{{end}}" href="/admin/books/create">Admin</a>
+        {{end}}
+
         <span class="divider"></span>
 
         {{if .IsAuth}}
