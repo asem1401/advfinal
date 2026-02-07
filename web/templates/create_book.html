@@ -1,0 +1,31 @@
+{{define "content"}}
+<h1 class="h1">Admin: Create Book</h1>
+
+{{if .Error}}
+  <div class="alert">{{.Error}}</div>
+{{end}}
+
+<form class="form" method="post" action="/admin/books/create">
+  <label>Title</label>
+  <input name="title" required value="{{index .Form "title"}}"/>
+
+  <label>Author</label>
+  <input name="author" required value="{{index .Form "author"}}"/>
+
+  <label>Genre</label>
+  <input name="genre" required value="{{index .Form "genre"}}"/>
+
+  <label>Price ($)</label>
+  <input name="price" type="number" step="0.01" required value="{{index .Form "price"}}"/>
+
+  <label>Description</label>
+  <textarea name="description" rows="4" required>{{index .Form "description"}}</textarea>
+
+  <button class="btn btn-primary" type="submit">Create</button>
+</form>
+
+<hr class="hr"/>
+
+{{end}}
+
+{{template "base" .}}
