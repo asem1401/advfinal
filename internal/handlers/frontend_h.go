@@ -16,7 +16,7 @@ import (
 )
 
 type FrontendHandler struct {
-	tpls map[string]*template.Template
+	tpls      map[string]*template.Template
 	books     *logic.BookService
 	auth      *logic.AuthService
 	cart      *logic.CartCRUDService
@@ -57,7 +57,7 @@ func NewFrontendHandler(
 		"orders":        "orders.html",
 		"order_details": "order_details.html",
 		"wishlists":     "wishlists.html",
-		"create_book": 	 "create_book.html",
+		"create_book":   "create_book.html",
 	}
 
 	tpls := make(map[string]*template.Template, len(pages))
@@ -220,7 +220,57 @@ func (h *FrontendHandler) Home(w http.ResponseWriter, r *http.Request) {
 func (h *FrontendHandler) Catalog(w http.ResponseWriter, r *http.Request) {
 	data := h.baseData(r, "catalog")
 	data["Title"] = "Catalog"
-	data["Books"] = h.books.ListBooks()
+
+	qp := r.URL.Query()
+
+	var q models.BookQuery
+	q.Search = strings.TrimSpace(qp.Get("search"))
+	q.Genre = strings.TrimSpace(qp.Get("genre"))
+	q.SortBy = strings.TrimSpace(qp.Get("sort"))
+	q.Order = strings.TrimSpace(qp.Get("order"))
+
+	if v := strings.TrimSpace(qp.Get("minPrice")); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			q.MinPrice = &f
+		}
+	}
+	if v := strings.TrimSpace(qp.Get("maxPrice")); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			q.MaxPrice = &f
+		}
+	}
+
+	books, err := h.books.ListBooks(r.Context(), q)
+	if err != nil {
+		data["Books"] = []models.Book{}
+		data["Error"] = "Failed to load books"
+	} else {
+		data["Books"] = books
+	}
+
+	data["Q"] = map[string]string{
+		"search":   q.Search,
+		"genre":    q.Genre,
+		"minPrice": qp.Get("minPrice"),
+		"maxPrice": qp.Get("maxPrice"),
+		"sort":     q.SortBy,
+		"order":    q.Order,
+	}
+
+	data["Genres"] = []string{
+		"",
+		"Fantasy",
+		"Romance",
+		"Science Fiction",
+		"Mystery",
+		"Thriller",
+		"Non-Fiction",
+		"Self-Help",
+		"History",
+		"Biography",
+		"Programming",
+	}
+
 	h.render(w, "catalog", data)
 }
 
@@ -293,7 +343,7 @@ func (h *FrontendHandler) CartPage(w http.ResponseWriter, r *http.Request) {
 
 	c, items := h.ensureUserCart(userID)
 
-	books := h.books.ListBooks()
+	books, _ := h.books.ListBooks(r.Context(), models.BookQuery{})
 	bookMap := map[int]models.Book{}
 	for _, b := range books {
 		bookMap[b.ID] = b
@@ -431,7 +481,8 @@ func (h *FrontendHandler) OrderDetailsPage(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	books := h.books.ListBooks()
+	books, _ := h.books.ListBooks(r.Context(), models.BookQuery{})
+
 	bookMap := map[int]models.Book{}
 	for _, b := range books {
 		bookMap[b.ID] = b
@@ -476,7 +527,6 @@ func (h *FrontendHandler) WishlistsPage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-
 	all := h.wishlist.ListWishlists()
 
 	var myWL models.Wishlist
@@ -491,7 +541,7 @@ func (h *FrontendHandler) WishlistsPage(w http.ResponseWriter, r *http.Request) 
 		all = h.wishlist.ListWishlists()
 	}
 
-	books := h.books.ListBooks()
+	books, _ := h.books.ListBooks(r.Context(), models.BookQuery{})
 	bookMap := map[int]models.Book{}
 	for _, b := range books {
 		bookMap[b.ID] = b
@@ -519,7 +569,7 @@ func (h *FrontendHandler) WishlistsPage(w http.ResponseWriter, r *http.Request) 
 	others := make([]WishlistBlockView, 0)
 	for _, wl := range all {
 		if wl.CustomerID == userID {
-			continue 
+			continue
 		}
 
 		wObj, items, err := h.wishlist.GetWishlist(wl.ID)
@@ -697,4 +747,3 @@ type WishlistBlockView struct {
 	Rows     []WishlistRowView
 	Total    float64
 }
-
