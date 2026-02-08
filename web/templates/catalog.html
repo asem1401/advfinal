@@ -1,28 +1,100 @@
 {{define "content"}}
 <h1 class="h1">Catalog</h1>
 
+<form method="get" action="/catalog" style="margin-bottom:16px; position:relative; z-index:5;">
+  <div class="filters" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+
+    <div>
+      <div class="muted">Search</div>
+      <input
+              name="search"
+              value="{{index .Q "search"}}"
+      placeholder="Title or author"
+      class="input"
+      onchange="this.form.submit()"
+      />
+    </div>
+
+    <div>
+      <div class="muted">Genre</div>
+      <select name="genre" class="input" onchange="this.form.submit()">
+        {{range .Genres}}
+        <option value="{{.}}" {{if eq (index $.Q "genre") .}}selected{{end}}>
+        {{if eq . ""}}All{{else}}{{.}}{{end}}
+        </option>
+        {{end}}
+      </select>
+    </div>
+
+    <div>
+      <div class="muted">Min price</div>
+      <input
+              name="minPrice"
+              value="{{index .Q "minPrice"}}"
+      placeholder="0"
+      class="input"
+      onchange="this.form.submit()"
+      />
+    </div>
+
+    <div>
+      <div class="muted">Max price</div>
+      <input
+              name="maxPrice"
+              value="{{index .Q "maxPrice"}}"
+      placeholder="999"
+      class="input"
+      onchange="this.form.submit()"
+      />
+    </div>
+
+    <div>
+      <div class="muted">Sort</div>
+      <select name="sort" class="input" onchange="this.form.submit()">
+        <option value="" {{if eq (index .Q "sort") ""}}selected{{end}}>Default</option>
+        <option value="price" {{if eq (index .Q "sort") "price"}}selected{{end}}>Price</option>
+        <option value="title" {{if eq (index .Q "sort") "title"}}selected{{end}}>Title</option>
+      </select>
+    </div>
+
+    <div>
+      <div class="muted">Order</div>
+      <select name="order" class="input" onchange="this.form.submit()">
+        <option value="asc" {{if eq (index .Q "order") "asc"}}selected{{end}}>Asc</option>
+        <option value="desc" {{if eq (index .Q "order") "desc"}}selected{{end}}>Desc</option>
+      </select>
+    </div>
+
+    <a class="btn btn-ghost" href="/catalog">Reset</a>
+  </div>
+</form>
+
+{{if .Error}}
+<div class="muted" style="margin-bottom:12px;">{{.Error}}</div>
+{{end}}
+
 <div class="grid">
   {{range .Books}}
-    <div class="card">
-      <div class="card-title">{{.Title}}</div>
-      <div class="muted">{{.Author}} • {{.Genre}}</div>
-      <div class="price">${{printf "%.2f" .Price}}</div>
-      <p class="desc">{{.Description}}</p>
+  <div class="card">
+    <div class="card-title">{{.Title}}</div>
+    <div class="muted">{{.Author}} • {{.Genre}}</div>
+    <div class="price">${{printf "%.2f" .Price}}</div>
+    <p class="desc">{{.Description}}</p>
 
-      {{if $.IsAuth}}
-        <form method="post" action="/cart/add/{{.ID}}">
-          <button class="btn btn-primary" type="submit">Add to Cart</button>
-        </form>
+    {{if $.IsAuth}}
+    <form method="post" action="/cart/add/{{.ID}}">
+      <button class="btn btn-primary" type="submit">Add to Cart</button>
+    </form>
 
-        <form method="post" action="/wishlists/add/{{.ID}}" style="margin-top:8px;">
-          <button class="btn btn-ghost" type="submit">Add to Wishlist</button>
-        </form>
-      {{else}}
-        <div class="muted" style="margin-top:10px;">Login to add items.</div>
-      {{end}}
-    </div>
+    <form method="post" action="/wishlists/add/{{.ID}}" style="margin-top:8px;">
+      <button class="btn btn-ghost" type="submit">Add to Wishlist</button>
+    </form>
+    {{else}}
+    <div class="muted" style="margin-top:10px;">Login to add items.</div>
+    {{end}}
+  </div>
   {{else}}
-    <p class="muted">No books yet.</p>
+  <p class="muted">No books yet.</p>
   {{end}}
 </div>
 {{end}}
