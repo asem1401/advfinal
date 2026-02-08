@@ -115,6 +115,7 @@ func parseBookQuery(r *http.Request) models.BookQuery {
 	q.Genre = strings.TrimSpace(qp.Get("genre"))
 	q.SortBy = strings.TrimSpace(qp.Get("sort"))
 	q.Order = strings.TrimSpace(qp.Get("order"))
+	q.Search = strings.TrimSpace(qp.Get("search"))
 
 	if v := qp.Get("minPrice"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
