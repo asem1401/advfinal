@@ -19,6 +19,7 @@ func NewBookService(repo repository.BookRepository) *BookService {
 
 func (s *BookService) ListBooks(ctx context.Context, q models.BookQuery) ([]models.Book, error) {
 	q.Genre = strings.TrimSpace(q.Genre)
+	q.Search = strings.TrimSpace(q.Search)
 	q.SortBy = strings.ToLower(strings.TrimSpace(q.SortBy))
 	q.Order = strings.ToLower(strings.TrimSpace(q.Order))
 	if q.Order != "desc" {
@@ -51,7 +52,6 @@ func (s *BookService) CreateBook(b models.Book) (models.Book, error) {
 	if b.Price < 0 {
 		return models.Book{}, errors.New("price cannot be negative")
 	}
-
 	return s.repo.Create(b)
 }
 
@@ -65,7 +65,6 @@ func (s *BookService) UpdateBook(b models.Book) error {
 	if b.Price < 0 {
 		return errors.New("price cannot be negative")
 	}
-
 	return s.repo.Update(b)
 }
 
