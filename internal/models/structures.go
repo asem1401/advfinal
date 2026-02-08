@@ -13,6 +13,7 @@ type Book struct {
 
 type BookQuery struct {
 	Genre    string
+	Search   string
 	MinPrice *float64
 	MaxPrice *float64
 	SortBy   string
