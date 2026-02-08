@@ -119,6 +119,13 @@ func (r *BookRepo) Find(ctx context.Context, q models.BookQuery) ([]models.Book,
 		filter["genre"] = q.Genre
 	}
 
+	if q.Search != "" {
+		filter["$or"] = bson.A{
+			bson.M{"title": bson.M{"$regex": q.Search, "$options": "i"}},
+			bson.M{"author": bson.M{"$regex": q.Search, "$options": "i"}},
+		}
+	}
+
 	if q.MinPrice != nil || q.MaxPrice != nil {
 		price := bson.M{}
 		if q.MinPrice != nil {
@@ -139,9 +146,11 @@ func (r *BookRepo) Find(ctx context.Context, q models.BookQuery) ([]models.Book,
 
 	switch q.SortBy {
 	case "price":
-		opts.SetSort(bson.D{{Key: "price", Value: dir}})
+		opts.SetSort(bson.D{{Key: "price", Value: dir}, {Key: "id", Value: 1}})
 	case "title":
-		opts.SetSort(bson.D{{Key: "title", Value: dir}})
+		opts.SetSort(bson.D{{Key: "title", Value: dir}, {Key: "id", Value: 1}})
+	default:
+		opts.SetSort(bson.D{{Key: "id", Value: 1}})
 	}
 
 	cur, err := r.col.Find(ctx, filter, opts)
